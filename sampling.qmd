@@ -1,0 +1,265 @@
+---
+title: 隨機抽樣的方法
+subtitle: Methods of Random Sampling
+author: Tsai, Dai-Rong
+number-sections: true
+toc: true
+toc-expand: 3
+toc-depth: 3
+format:
+  html:
+    embed-resources: true
+    code-link: true
+    grid:
+      margin-width: 350px
+  pdf:
+    pdf-engine: xelatex
+    CJKmainfont: "Kaiti TC"
+    CJKoptions:
+      - BoldFont=Kaiti TC Bold
+    geometry:
+      - right=30mm
+---
+
+- 研究背景: 某大學去年共有 2,000 名畢業生, 來自 26 個科系 (科系A-Z)
+- 研究目的: 隨機抽樣 100 名畢業生, 推論該所大學學生畢業一年的就業率
+
+```{r indent = "  "}
+graduate <- read.csv("data/graduate.csv")
+
+dim(graduate)
+head(graduate)
+table(graduate$department)
+
+N <- nrow(graduate)
+n <- 100
+
+set.seed(1) # 使每次執行程式時得到相同的隨機結果
+```
+
+# 隨機抽樣的方法
+
+## 簡單隨機抽樣 (Simple Random Sampling)
+
+```{r}
+sample1_id <- sample(1:N, size = n)
+sample1 <- graduate[sample1_id, ]
+
+dim(sample1)
+head(sample1)
+
+# 就業率估計值
+mean(sample1$employment)
+```
+
+## 系統性抽樣 (Systematic Sampling)
+
+- 每隔 k 筆資料選擇一個樣本點
+- 樣本均勻散佈在整個抽樣名單中
+- 資料若有週期性, 估計結果會有偏差 (bias)
+
+```{r}
+# 計算抽樣間距
+k <- N / n
+k
+
+# 抽樣起始點
+start <- sample(1:k, size = 1)
+start
+
+# 從 start 開始，每隔 k 筆抽取一人
+sample2_id <- seq(from = start, by = k, length.out = n)
+sample2_id
+sample2 <- graduate[sample2_id, ]
+
+dim(sample2)
+head(sample2)
+
+# 就業率估計值
+mean(sample2$employment)
+```
+
+## 分層抽樣 (Stratified Sampling)
+
+- 較小的分層 (strata) 可以增加抽出率, 以保障這些分層有足夠樣本數
+- 各分層的樣本平均值進行加權平均, 以估計族群平均值
+- 變異數比簡單隨機抽樣小
+
+::: {.callout-warning}
+
+各分層樣本平均值之權重, 應該使用目標族群中各分層的比例, 而非抽出樣本的分層比例。
+
+:::
+
+```{r}
+# 計算目標族群中各科系人數
+dept_count <- table(graduate$department)
+dept_count
+
+# 計算各科系抽樣人數
+# 此處將各科系抽出率設為一致 (n/N), 實際上各分層可以有不同抽出率
+dept_sample_size <- round(dept_count * n / N)
+dept_sample_size
+
+# round() 四捨五入之後可能造成總和不等於 100
+sum(dept_sample_size)
+
+# 產生科系清單
+dept_list <- unique(graduate$department)
+
+# 初始化一個空的向量, 收集各科系所抽出的 ID
+sample3_id <- c()
+
+# 根據各科系指定的樣本數進行隨機抽樣
+for(dept in dept_list) {
+  # 找出該科系所有學生的資料列
+  dept_id <- which(graduate$department == dept)
+  
+  # 從該科系隨機抽取指定人數
+  dept_id_sampled <- sample(dept_id, size = dept_sample_size[dept])
+  
+  # 將各科系所抽出的 id 合併成一個向量
+  sample3_id <- c(sample3_id, dept_id_sampled)
+}
+
+sample3 <- graduate[sample3_id, ]
+
+# 查看 sample3 各科系人數是否與 dept_sample_size 一致
+all.equal(table(sample3$department), dept_sample_size)
+
+dim(sample3)
+head(sample3)
+
+# 就業率估計值
+sum(tapply(sample3$employment, sample3$department, mean) * proportions(dept_count))
+```
+
+## 群集抽樣 (Cluster Sampling)
+
+- 以群集 (cluster) 為單位隨機抽樣, 抽中的群集中所有成員皆作為樣本
+- 若從抽中的群集成員中再進行隨機抽樣, 稱為 **二階段抽樣** (two-stage sampling)
+- 節省研究經費及時間成本
+- 變異數比簡單隨機抽樣大
+
+```{r}
+# 產生科系清單
+dept_list <- unique(graduate$department)
+
+# 隨機抽取 5 個科系
+dept_selected <- sample(dept_list, size = 5)
+sort(dept_selected)
+
+# 找出這 5 個科系的所有學生
+cluster_id <- which(graduate$department %in% dept_selected)
+length(cluster_id)
+
+# 從這些學生中隨機抽取 100 人
+sample4_id <- sample(cluster_id, size = n)
+sample4 <- graduate[sample4_id, ]
+
+# 檢查 sample4 包含哪些科系
+table(sample4$department)
+
+dim(sample4)
+head(sample4)
+
+# 就業率估計值
+mean(sample4$employment)
+```
+
+\newpage
+
+# 信賴區間
+
+```{r}
+p <- mean(sample1$employment)
+p + c(qnorm(0.025), qnorm(0.975)) * sqrt(p * (1-p) / n)
+```
+
+Q. 重複抽樣 100 次, 得到 100 個信賴區間, 有幾個區間會涵蓋就業率的母體真值 ?
+
+```{r}
+# 初始化一個空的矩陣, 包含 3 個 columns, 依序記錄:
+#   (1) p 的估計值
+#   (2) p 的信賴區間下界
+#   (3) p 的信賴區間上界
+p_rep <- matrix(nrow = 0, ncol = 3)
+
+# 重複抽樣 100 次
+for(i in 1:100) {
+  sample1_id <- sample(1:N, size = n)
+  sample1 <- graduate[sample1_id, ]
+  
+  p <- mean(sample1$employment)
+  p_ci <- p + c(qnorm(0.025), qnorm(0.975)) * sqrt(p * (1-p) / n)
+  
+  # 合併每一次抽樣所計算出的 p 與 p_ci
+  p_rep <- rbind(p_rep, c(p, p_ci))
+}
+
+dim(p_rep)
+head(p_rep)
+
+# 就業率的母體真值
+p_true <- mean(graduate$employment)
+p_true
+
+# 標準誤 (standard error)
+p_se <- sqrt(p_true * (1 - p_true) / n)
+p_se
+
+# 有幾個區間會涵蓋就業率的母體真值 ?
+cover_or_not <- (p_true >= p_rep[, 2] & p_true <= p_rep[, 3])
+sum(cover_or_not)
+```
+
+```{r}
+#| fig-width: 6
+#| fig-height: 6
+
+plot(p_rep[, 1], 1:100, pch = 18, cex = 0.7, xlim = c(0.5, 0.9),
+     col = ifelse(cover_or_not, 8, 2),
+     main = "95% Confidence Interval",
+     xlab = "p", ylab = "number of sample",)
+segments(p_rep[, 2], 1:100, p_rep[, 3], 1:100,
+         col = ifelse(cover_or_not, 8, 2))
+abline(v = p_true, lty = 2)
+```
+
+\newpage
+
+# 中央極限定理
+
+增加重複抽樣次數至 1000 次, 可更清楚描繪就業率的抽樣分布 (sampling distribution)。
+
+```{r}
+p_rep <- matrix(nrow = 0, ncol = 3)
+
+for(i in 1:1000) {
+  sample1_id <- sample(1:N, size = n)
+  sample1 <- graduate[sample1_id, ]
+  
+  p <- mean(sample1$employment)
+  p_ci <- p + c(qnorm(0.025), qnorm(0.975)) * sqrt(p * (1-p) / n)
+  
+  p_rep <- rbind(p_rep, c(p, p_ci))
+}
+```
+
+```{r}
+# 觀測值
+c(Mean = mean(p_rep[, 1]), SE = sd(p_rep[, 1]))
+
+# 理論值
+c(Mean = p_true, SE = p_se)
+```
+
+```{r}
+#| fig-width: 6
+#| fig-height: 5
+
+hist(p_rep[, 1], prob = TRUE, border = "white",
+     main = "Sampling Distribution", xlab = "p")
+curve(dnorm(x, mean = p_true, sd = p_se), add = TRUE,
+      col = 2, lwd = 2, lty = 2)
+```
