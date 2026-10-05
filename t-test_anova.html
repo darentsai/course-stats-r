@@ -2767,7 +2767,7 @@ ratio of variances
 </div>
 </section>
 </div>
-<p>變異數檢定之 <em>p</em>-value = 0.353，在顯著水準 0.05 下無法拒絕 <span class="math inline">\(H_0\)</span>。 吸菸與無吸菸孕婦生下的嬰兒體重變異數無顯著差異。 因此進行 <em>t</em>-test 時需設定 <code>var.equal = TRUE</code>:</p>
+<p>變異數同質性檢定之 <em>p</em>-value = 0.353，在顯著水準 0.05 下無法拒絕 <span class="math inline">\(H_0\)</span>， 表示吸菸與無吸菸孕婦生下的嬰兒體重之變異數無顯著差異。 因此，在進行 <em>t</em>-test 時需設定 <code>var.equal = TRUE</code>:</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/t.test.html">t.test</a></span><span class="op">(</span><span class="va">birthweight</span> <span class="op">~</span> <span class="va">smoking</span>, data <span class="op">=</span> <span class="va">smk_wt</span>, var.equal <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -2806,57 +2806,54 @@ mean in group nonsmokers    mean in group smokers
 <li>Independence of observations</li>
 <li>Normality
 <ul>
-<li>Check using <strong>Shapiro-Wilk test</strong>: <code><a href="https://rdrr.io/r/stats/shapiro.test.html">shapiro.test()</a></code>
+<li>
+<strong>Shapiro-Wilk test</strong> — <code><a href="https://rdrr.io/r/stats/shapiro.test.html">shapiro.test()</a></code>
+</li>
+<li>
+<strong>Q-Q plot</strong> — <code><a href="https://rdrr.io/r/stats/qqnorm.html">qqplot()</a></code>
 </li>
 </ul>
 </li>
 <li>Equality of variances (Homoscedasticity)
 <ul>
-<li>Check using
-<ul>
 <li>
-<strong>Levene’s test</strong>: <code><a href="https://rdrr.io/pkg/car/man/leveneTest.html">car::leveneTest()</a></code>
-</li>
+<strong>Bartlett’s test</strong> — <code><a href="https://rdrr.io/r/stats/bartlett.test.html">bartlett.test()</a></code>:<br>
+對資料的常態性較為敏感；資料偏離常態分布時 type I error rate 增加。</li>
 <li>
-<strong>Bartlett’s test</strong>: <code><a href="https://rdrr.io/r/stats/bartlett.test.html">bartlett.test()</a></code>
-</li>
-</ul>
-</li>
+<strong>Levene’s test</strong> — <code><a href="https://rdrr.io/pkg/car/man/leveneTest.html">car::leveneTest()</a></code>:<br>
+對資料偏離常態分布較為穩健；然而，當資料確實來自常態分布時，其檢定力 (power) 通常低於 Bartlett’s test。</li>
 </ul>
 </li>
 </ol>
-<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout callout-style-default callout-important callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-Note
+Important
 </div>
 </div>
 <div class="callout-body-container callout-body">
 <ul>
-<li>Bartlett’s test 對資料的常態性較為敏感； 當資料偏離常態分布時，可能錯誤判斷變異數不相同 (Type I error)。</li>
-<li>Levene’s test 對資料偏離常態分布較為穩健； 然而，當常態分布假設成立時，可能錯誤判斷變異數相同 (Type II error)， 使其檢定力 (power) 低於 Bartlett’s test。</li>
-</ul>
-</div>
-</div>
-<ul>
 <li>若資料明顯違反常態性假設, 可改用無母數 (non-parametric) 檢定方法
 <ul>
 <li>
-<strong>Kruskal-Wallis test</strong>: <code><a href="https://rdrr.io/r/stats/kruskal.test.html">kruskal.test()</a></code>
+<strong>Kruskal-Wallis test</strong> — <code><a href="https://rdrr.io/r/stats/kruskal.test.html">kruskal.test()</a></code>
 </li>
 </ul>
 </li>
 <li>若資料近似常態分布，但變異數不相等, 可改用
 <ul>
 <li>
-<strong>Welch’s ANOVA</strong>: <code>oneway.test(..., var.equal = FALSE)</code>
+<strong>Welch’s ANOVA</strong> — <code>oneway.test(..., var.equal = FALSE)</code>
 </li>
 </ul>
 </li>
-</ul></section><section id="事後檢定-post-hoc-test" class="level2" data-number="2.2"><h2 data-number="2.2" class="anchored" data-anchor-id="事後檢定-post-hoc-test">
+</ul>
+</div>
+</div>
+</section><section id="事後檢定-post-hoc-test" class="level2" data-number="2.2"><h2 data-number="2.2" class="anchored" data-anchor-id="事後檢定-post-hoc-test">
 <span class="header-section-number">2.2</span> 事後檢定 (post-hoc test)</h2>
 <p>若有 3 組獨立樣本，需進⾏ <span class="math inline">\(C_2^3 = 3\)</span> 次成對比較。 令一次成對比較犯錯的可容許機率為<span class="math inline">\(\alpha^*\)</span>，整體犯錯的可容許機率為<span class="math inline">\(\alpha\)</span>，則</p>
 <p><span class="math display">\[

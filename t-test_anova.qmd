@@ -270,9 +270,9 @@ var.test(birthweight ~ smoking, data = smk_wt)
 
 :::
 
-變異數檢定之 *p*-value = 0.353，在顯著水準 0.05 下無法拒絕 $H_0$。
-吸菸與無吸菸孕婦生下的嬰兒體重變異數無顯著差異。
-因此進行 *t*-test 時需設定 `var.equal = TRUE`:
+變異數同質性檢定之 *p*-value = 0.353，在顯著水準 0.05 下無法拒絕 $H_0$，
+表示吸菸與無吸菸孕婦生下的嬰兒體重之變異數無顯著差異。
+因此，在進行 *t*-test 時需設定 `var.equal = TRUE`:
 
 ```{r}
 t.test(birthweight ~ smoking, data = smk_wt, var.equal = TRUE)
@@ -294,26 +294,23 @@ t.test(birthweight ~ smoking, data = smk_wt, var.equal = TRUE)
 
 1. Independence of observations
 2. Normality
-   - Check using **Shapiro-Wilk test**: `shapiro.test()`
+     - **Shapiro-Wilk test** --- `shapiro.test()`
+     - **Q-Q plot** --- `qqplot()`
 3. Equality of variances (Homoscedasticity)
-   - Check using
-     - **Levene's test**: `car::leveneTest()`
-     - **Bartlett's test**: `bartlett.test()`
+     - **Bartlett's test** --- `bartlett.test()`:\
+       對資料的常態性較為敏感；資料偏離常態分布時 type I error rate 增加。
+     - **Levene's test** --- `car::leveneTest()`:\
+       對資料偏離常態分布較為穩健；然而，當資料確實來自常態分布時，其檢定力 (power)
+       通常低於 Bartlett's test。
 
-::: {.callout-note}
-
-- Bartlett's test 對資料的常態性較為敏感；
-  當資料偏離常態分布時，可能錯誤判斷變異數不相同 (Type I error)。
-- Levene's test 對資料偏離常態分布較為穩健；
-  然而，當常態分布假設成立時，可能錯誤判斷變異數相同 (Type II error)，
-  使其檢定力 (power) 低於 Bartlett's test。
-
-:::
+::: {.callout-important}
 
 - 若資料明顯違反常態性假設, 可改用無母數 (non-parametric) 檢定方法
-  - **Kruskal-Wallis test**: `kruskal.test()`
+  - **Kruskal-Wallis test** --- `kruskal.test()`
 - 若資料近似常態分布，但變異數不相等, 可改用
-  - **Welch's ANOVA**: `oneway.test(..., var.equal = FALSE)`
+  - **Welch's ANOVA** --- `oneway.test(..., var.equal = FALSE)`
+
+:::
 
 ## 事後檢定 (post-hoc test)
 
