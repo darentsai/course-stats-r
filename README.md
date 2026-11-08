@@ -6,3 +6,5 @@
   Simple / Systematic / Stratified / Cluster Sampling
 - [Hypothesis Testing and Comparison of Means](https://darentsai.github.io/course-stats-r/t-test_anova) <br>
   Student’s t-test and ANOVA
+- [Contingency Table Analysis and Logistic Regression](https://darentsai.github.io/course-stats-r/crosstab_logisreg) <br>
+  Pearson's chi-squared test / Fisher's exact test / Logistic regression
