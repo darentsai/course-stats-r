@@ -18,10 +18,7 @@ format:
     CJKoptions:
       - BoldFont=Kaiti TC Bold
     geometry:
-      - left=30mm
       - right=30mm
-      - top=25mm
-      - bottom=35mm
 format-links:
   - html
   - text: PDF
@@ -41,22 +38,19 @@ Pneumoconiosis (塵肺病) is an occupational lung disease and a restrictive lun
 caused by the inhalation of dust, often in mines and from agriculture.
 
 - `year`: Number of years of exposure
-- `n`: Total Number of miners
-- `case`: Number of severe cases
-- `noncase`: Number of non-severe cases
+- `y`: 1 = severe case; 0 = otherwise
 
 ```{r}
 pneu <- read.csv("data/pneumoconiosis.csv")
-pneu <- transform(pneu,
-                  noncase = n - case,
-                  yeargrp = ifelse(year < 30, "<30", ">30"))
-pneu
+pneu <- transform(pneu, yeargp = ifelse(year < 30, "<30", ">30"))
+head(pneu)
+dim(pneu)
 ```
 
 ## Contingency table object in R
 
 ```{r}
-pneu_tab <- xtabs(cbind(noncase, case) ~ yeargrp, data = pneu)
+pneu_tab <- xtabs(~ yeargp + y, data = pneu) # table(pneu$yeargp, pneu$y)
 pneu_tab
 class(pneu_tab)
 dim(pneu_tab)
@@ -132,8 +126,6 @@ See `?fisher.test` for more details.
 fisher.test(pneu_tab)
 ```
 
-\newpage
-
 ### Right-tailed test {.unnumbered .unlisted}
 
 ```{r}
@@ -162,8 +154,9 @@ pneu_tab_2 <- pneu_tab |>
   tibble::rownames_to_column(var = "year")
 
 pneu_tab_2 |>
-  transform(case = cell_spec(case, color = c("black", "red", "black"),
-                             bold = c(0, 1, 0))) |> 
+  transform(`1` = cell_spec(`1`, color = c("black", "red", "black"),
+                            bold = c(0, 1, 0))) |> 
+  dplyr::rename_with(~ paste0("Y=", .x), c(`0`, `1`)) |>
   kbl(escape = FALSE) |> 
   column_spec(4, background = "#E5E5E5") |> 
   row_spec(3, background = "#E5E5E5") |> 
@@ -229,32 +222,28 @@ sum(dhyper(32:44, 44, 327, 128))
 sum(dhyper(0:32, 44, 327, 128))
 ```
 
-\newpage
-
 # Logistic regression
 
-## Grouped data
+類別型反應變數的記錄方式分為:
 
-塵肺病資料 (`pneu`) 是將解釋變數數值相同的對象歸為一組，記錄該組的事件發生次數，
-這種資料型態稱為 **grouped data**。
+- **individual data**: 對每一個觀測對象記錄其解釋變數數值以及事件發生與否 (0/1)。
+- **grouped data**: 將解釋變數數值相同的對象歸為一組，記錄該組的事件發生次數。
+
+## Individual data
+
+前面使用的塵肺病資料 (`pneu`) 屬於 individual data。
+
+```{r}
+head(pneu)
+```
 
 ### Binary covariate
 
-對 grouped data 配適 logistic regression 有兩種語法：
-
-1. 將模型的 response 設為一個 2-column matrix，分別代表 case 與 non-case 的人數
-
-```{r indent = "   "}
-m1 <- glm(cbind(case, noncase) ~ yeargrp, family = binomial, data = pneu)
+```{r}
+m1 <- glm(y ~ yeargp, family = binomial, data = pneu)
 ```
 
-2. 將模型的 response 設為 case 的比例，但注意要用總人數加權
-
-```{r indent = "   "}
-m1 <- glm(case/n ~ yeargrp, family = binomial, data = pneu, weights = n)
-```
-
-兩種語法完全等價，可用 `summary()` 檢視結果：
+可用 `summary()` 檢視模型的詳細資訊：
 
 ```{r}
 summary(m1)
@@ -306,7 +295,8 @@ exp(confint.default(m1))
 ::: {.callout-note}
 
 Logistic regression 的斜率係數即代表 $\text{log}(OR)$。
-當解釋變數只有一個且是類別變數時，其係數估計值與標準誤會與直接從列聯表計算的結果完全一致:
+當解釋變數只有一個且是類別變數時，其係數估計值與標準誤 (standard error)
+會與直接從列聯表計算的結果完全一致:
 
 $$ OR = \frac{231 \times 32}{12 \times 96} = 6.417 $$
 $$ \text{log}(OR) = \text{log}(6.417) = 1.8589 $$
@@ -317,7 +307,7 @@ $$ SE(\text{log}(OR)) = \sqrt{\frac{1}{231} + \frac{1}{12} + \frac{1}{96} + \fra
 ### Continuous covariate
 
 ```{r}
-m2 <- glm(case/n ~ year, family = binomial, data = pneu, weights = n)
+m2 <- glm(y ~ year, family = binomial, data = pneu)
 summary(m2)
 ```
 
@@ -325,7 +315,7 @@ summary(m2)
 
 #### Interpretation of **slope** term
 
-暴露年數每增加一年，得到塵肺病的「勝算比」(odds ratio, OR) 為 $e^{0.093}=1.098$。
+暴露年數每增加一年，得到塵肺病的「勝算比」(odds ratio, OR) 為 $e^{0.0935}=1.098$。
 
 - *p*-value = $1.37 \times 10^{-9} < 0.05$
 - 95% 信賴區間未包含 1
@@ -353,11 +343,11 @@ exp(confint.default(m2))[-1, ]
 $$
 \begin{aligned}
 OR &= \frac{odds|_{\text{year}=20}}{odds|_{\text{year}=5}} \\
-\text{log}(odds|_{\text{year}=20}) &= -4.796 + 0.093 \times 20 ~~~...(1) \\
-\text{log}(odds|_{\text{year}=5}) &= -4.796 + 0.093 \times 5 ~~~~~...(2) \\
+\text{log}(odds|_{\text{year}=20}) &= -4.7965 + 0.0935 \times 20 ~~~...(1) \\
+\text{log}(odds|_{\text{year}=5}) &= -4.7965 + 0.0935 \times 5 ~~~~~...(2) \\
 (1)-(2): \text{log}(\frac{odds|_{\text{year}=20}}{odds|_{\text{year}=5}})
-  &= 0.093 \times (20-5) = 1.395 = \text{log}(OR) \\
-OR &= e^{1.395} = 4.035
+  &= 0.0935 \times (20-5) = 1.4025 = \text{log}(OR) \\
+OR &= e^{1.4025} = 4.065
 \end{aligned}
 $$
 
@@ -365,33 +355,45 @@ $$
 
 \newpage
 
-## Individual data
-
-對每一個觀測對象記錄其變數數值與事件發生與否(0/1)，稱為 **individual data**。
+## Grouped data
 
 ```{r}
-#| code-fold: true
+pneu_gp <- aggregate(cbind(case = y, noncase = 1-y) ~ year + yeargp,
+                     data = pneu, FUN = sum)
+pneu_gp$n <- pneu_gp$case + pneu_gp$noncase
 
-pneu2 <- pneu |>
-  dplyr::select(-n) |>
-  tidyr::pivot_longer(c(case, noncase), names_to = "y", values_to = "n",
-                      names_transform = ~ ifelse(.x == "case", 1, 0)) |>
-  tidyr::uncount(n)
-```
-
-```{r}
-dim(pneu2)
+pneu_gp
+pneu_gp[pneu_gp$year == 51.5, ]
 pneu[pneu$year == 51.5, ]
-pneu2[pneu2$year == 51.5, ]
 ```
+
+對 grouped data 配適 logistic regression 有兩種語法:
+
+1. 將模型的 response 設為一個 2-column matrix，分別代表 case 與 non-case 的人數
+
+```{r indent = "   "}
+m3 <- glm(cbind(case, noncase) ~ yeargp, family = binomial, data = pneu_gp)
+```
+
+2. 將模型的 response 設為 case 的比例，但注意要用總人數加權
+
+```{r indent = "   "}
+m3 <- glm(case/n ~ yeargp, family = binomial, data = pneu_gp, weights = n)
+```
+
+兩種語法完全等價。
+
+::: {.callout-note}
 
 對於相同的資料集，不論採用 grouped data 或 individual data 格式，
 所配適的模型係數與統計推論會完全一致。
 
+:::
+
 - Binary covariate
 
 ```{r indent = "  "}
-m3 <- glm(y ~ yeargrp, family = binomial, data = pneu2)
+m3 <- glm(case/n ~ yeargp, family = binomial, data = pneu_gp, weights = n)
 coef(summary(m3))
 all.equal(coef(summary(m1)), coef(summary(m3)), tolerance = 1e-4)
 ```
@@ -399,12 +401,12 @@ all.equal(coef(summary(m1)), coef(summary(m3)), tolerance = 1e-4)
 - Continuous covariate
 
 ```{r indent = "  "}
-m4 <- glm(y ~ year, family = binomial, data = pneu2)
+m4 <- glm(case/n ~ year, family = binomial, data = pneu_gp, weights = n)
 coef(summary(m4))
 all.equal(coef(summary(m2)), coef(summary(m4)), tolerance = 1e-4)
 ```
 
-## Prediction
+## Prediction and confidence interval
 
 ::: {.callout-tip}
 
@@ -440,7 +442,7 @@ pneu_new <- data.frame(year = seq(0, 100, by = 1))
 #| fig-width: 5.5
 #| fig-height: 5
 
-pred <- predict(m2, newdata = pneu_new,
+pred <- predict(m4, newdata = pneu_new,
                 type = "response", se.fit = TRUE)
 
 pneu_ci <- cbind(fit = pred$fit,
@@ -451,10 +453,8 @@ matplot(pneu_new$year, pneu_ci, type = 'l', lty = c(1, 2, 2), ylim = c(0, 1),
         xlab = "Years of Exposure", ylab = "Proportion of Severe Cases",
         main = "Wrong 95% CI")
 abline(h = 0:1, lty = 2, col = "gray")
-points(case/n ~ year, pneu, cex = sqrt(n)/3)
+points(case/n ~ year, pneu_gp, cex = sqrt(n)/3)
 ```
-
-\newpage
 
 ### Correct 95% CI {.unnumbered .unlisted}
 
@@ -462,18 +462,18 @@ points(case/n ~ year, pneu, cex = sqrt(n)/3)
 #| fig-width: 5.5
 #| fig-height: 5
 
-pred <- predict(m2, newdata = pneu_new,
+pred <- predict(m4, newdata = pneu_new,
                 type = "link", se.fit = TRUE)
 
 pneu_ci <- cbind(fit = pred$fit,
                  lower = pred$fit - 1.96 * pred$se.fit,
-                 upper = pred$fit + 1.96 * pred$se.fit) |> m2$family$linkinv() # plogis()
+                 upper = pred$fit + 1.96 * pred$se.fit) |> m4$family$linkinv() # plogis()
 
 matplot(pneu_new$year, pneu_ci, type = 'l', lty = c(1, 2, 2), ylim = c(0, 1),
         xlab = "Years of Exposure", ylab = "Proportion of Severe Cases",
         main = "Correct 95% CI")
 abline(h = 0:1, lty = 2, col = "gray")
-points(case/n ~ year, pneu, cex = sqrt(n)/3)
+points(case/n ~ year, pneu_gp, cex = sqrt(n)/3)
 ```
 
 :::
